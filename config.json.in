@@ -1,0 +1,21 @@
+{
+  "providers": {
+    "amazon": {
+      "app_id": "",
+      "app_secret": "",
+      "role_arn": ""
+    },
+    "google": {
+      "app_id": "",
+      "app_secret": "",
+      "role_arn": ""
+    },
+    "facebook": {
+      "app_id": "",
+      "app_secret": "",
+      "role_arn": ""
+    }
+  },
+  "identityPoolId": "",
+  "bucketName": ""
+}

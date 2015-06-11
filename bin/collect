@@ -1,0 +1,12 @@
+#!/bin/sh
+pushd .
+cd ../partner-distro-portal-pages
+wget -nH -erobots=off -p http://localhost:8888/index.html
+for __LOCALE in en-US
+do
+  rm -rf $__LOCALE
+  wget -r -nH -erobots=off http://localhost:8888/$__LOCALE/
+  git add -A --ignore-removal $__LOCALE
+done
+git add *.html
+popd

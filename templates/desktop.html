@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block head %}
+
+<style>
+  #desktop-image {
+    padding: 0;
+    margin: 0;
+    margin-top: 40px;
+    min-height: 130px;
+    /*max-width: 320px;*/
+    overflow: hidden;
+    background: no-repeat center top url("/images/home.png");
+  }
+.sidebar {
+  float: left;
+  width: 140px;
+  margin: 0px 10px;
+  padding-right: 10px;
+}
+
+</style>
+
+{% endblock %}
+
+{% block header %}
+<header id="main-feature">
+  <h1>Firefox Desktop Distributions</h1>
+  <h2>Help us shape the future of the Web for the public good</h2>
+  <p>Mozilla promotes openness, innovation and opportunity on the Internet by
+  engaging in unique partnerships with some of the world’s leading brands and
+  non-profits, as well as with technology, content and service providers. Find
+  out how you and your company can get involved. </p>
+  <div id="desktop-image"></div>
+</header>
+{% endblock %}
+
+
+{% block content %}
+
+ 
+<aside class="sidebar">
+  <ul class="nav">
+    <li id="home"><a href="/">Home</a></li>
+    <li class=""><a id="sidebar-active" href="/learn/">Learn</a></li>
+    <li class=""><a href="/build/">Build</a></li>
+    <li class=""><a href="/market/">Market</a></li>
+    <li class=""><a href="/maintain/">Maintain</a></li>
+  </ul>
+</aside>
+  <h1>Below the fold</h1>
+  <h2>TODO: outlines of how/when/why/where for partner distributions</h2>
+  <p>This page is mean to be a high level outline of resources for our partners, we'll link into various existing resources. </p>
+<li><a href="https://wiki.mozilla.org/Partnering/Repacks/Policy_and_Process">Policy and process</a></li>
+<li><a href="https://www.mozilla.org/en-US/foundation/trademarks/distribution-policy/">Distribution Policy</a></li>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block head %}
+<style>
+  .aside {
+    float: right;
+    width: 300px;
+    padding: 0;
+    margin: 0;
+    min-height: 360px;
+    /*max-width: 320px;*/
+    position: relative;
+    overflow: hidden;
+    background-image: url("/images/home.png");
+  }
+  #main-feature {
+    overflow: hidden;
+    
+  }
+  #main-feature, #main-content, #wrapper, #content-wrapper {
+    padding: 0px;
+  }
+  #colophon {
+    margin-top: 0;
+  }
+  .aside img {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+</style>
+  <script>
+    $(document).ready(function($) {
+      $('.imageswap').hover(function(event) {
+        $("#image-rotator").css("background-image", "url("+$(event.target).attr("data-image")+")");
+        
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block header %}
+<header id="main-feature">
+  <div class="sky mini aside" tabindex="0" id="image-rotator"></div>
+  <h1>Partner with Mozilla</h1>
+  <h2>Help us shape the future of the Web for the public good</h2>
+  <p>Mozilla promotes openness, innovation and opportunity on the Internet by
+  engaging in unique partnerships with some of the world’s leading brands and
+  non-profits, as well as with technology, content and service providers. Find
+  out how you and your company can get involved. </p>
+  <p>
+  <a href="/{{ locale }}/desktop/" class="button imageswap" data-image="/images/home.png">for Desktop</a>
+  <a href="/{{ locale }}/android/" class="button imageswap" data-image="/images/phone-intro.15791e3082d7.png">for Android</a>
+  <a href="https://mobilepartners.mozilla.org" class="button imageswap" data-image="/images/homescreen-2-0.d4b92defc02d.png">for Firefox OS</a>
+  <a href="https://www.mozilla.org/en-US/about/partnerships/" class="button imageswap" data-image="/images/home.png">more&#8230;</a>
+  </p>
+</header>
+{% endblock %}
+
+
+{% block content %}
+
+{% endblock %}

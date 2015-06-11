@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block head %}
+
+<style>
+.aside {
+    float: right;
+    width: 300px;
+    padding: 0;
+    margin: 0;
+    min-height: 240px;
+    /*max-width: 320px;*/
+    position: relative;
+    overflow: hidden;
+  }
+.aside img {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+.sidebar {
+  width: 140px;
+  margin: 0px 10px;
+  padding-right: 10px;
+}
+.main-column {
+  width: 770px;
+  float: right;
+}
+</style>
+
+{% endblock %}
+
+{% block header %}
+<header id="main-feature">
+  <div class="sky mini aside" tabindex="0" id="image-rotator"><img src="/images/phone-intro.15791e3082d7.png"/></div>
+  <h1>Firefox for Android</h1>
+  <h2>Stand out from the crowd</h2>
+  <p>Take advantage of our differentiated offering, strong brand and customer
+  love for the Firefox ecosystem to drive sales and data usage.</p>
+</header>
+{% endblock %}
+
+
+{% block content %}
+
+ <div class="main-column">
+<h2>Firefox for Android lets you:</h2>
+<h3>Customize the experience</h3>
+<p>Add your brand and content to increase customer touchpoints, improve retention and drive future sales.</p>
+<h3>Build new differentiated offerings</h3>
+<p>Integrate services directly into the browser to free yourself from the constraints of proprietary platforms.</p>
+<h3>Step into the Firefox ecosystem</h3>
+<p>Leverage the Firefox Marketplace, WebRTC technology, direct customer billing support, search enhancements, new Firefox cloud services and more.</p>
+
+  <h2>TODO: outlines of how/when/why/where for partner distributions</h2>
+  <p>This page is mean to be a high level outline of resources for our partners, we'll link into various existing resources.
+  <a href="https://wiki.mozilla.org/Mobile/Distribution_Files">mobile distribution</a></p>
+</div>
+
+<aside class="sidebar">
+  <ul class="nav">
+    <li id="home"><a href="/">Home</a></li>
+    <li class=""><a id="sidebar-active" href="/learn/">Learn</a></li>
+    <li class=""><a href="/build/">Build</a></li>
+    <li class=""><a href="/market/">Market</a></li>
+    <li class=""><a href="/maintain/">Maintain</a></li>
+  </ul>
+</aside>
+
+{% endblock %}
