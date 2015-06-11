@@ -5,7 +5,7 @@ from flask import Flask, request, json, render_template, redirect, url_for, abor
 from flask.ext.babel import Babel
 from werkzeug.routing import BaseConverter
 import collections
-import requests
+# import requests
 
 TRANSLATIONS = ['en-US', 'en_US']
 
