@@ -36,12 +36,10 @@ S3 and Cognito Setup steps:
                 "arn:aws:s3:::partner-distros"
             ],
             "Condition": {
-                "ForAllValues:StringEquals": {
+                "StringEquals": {
                     "cognito-identity.amazonaws.com:sub": [
                         "us-east-1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    ]
-                },
-                "StringEquals": {
+                    ],
                     "s3:prefix": [
                         ""
                     ],
@@ -57,12 +55,10 @@ S3 and Cognito Setup steps:
                 "s3:ListBucket"
             ],
             "Condition": {
-                "ForAllValues:StringEquals": {
+                "StringEquals": {
                     "cognito-identity.amazonaws.com:sub": [
                         "us-east-1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    ]
-                },
-                "StringEquals": {
+                    ],
                     "s3:prefix": [
                         "abc/",
                         "def/",
@@ -81,7 +77,7 @@ S3 and Cognito Setup steps:
                 "s3:GetObject"
             ],
             "Condition": {
-                "ForAllValues:StringEquals": {
+                "StringEquals": {
                     "cognito-identity.amazonaws.com:sub": [
                         "us-east-1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                     ]
