@@ -1,258 +1,171 @@
 {% extends "layout.html" %}
 {% block head %}
-
-<style>
-  
-/* sprite */
-ul.providers {
-    width: 150px;
-    padding: 0;
-    margin: 0 5px 5px 5px;
-    float: left;
-    list-style-type: none
-}
-
-ul.providers li {
-    height: 50px;
-    width: 150px;
-    padding: 0;
-    margin: 10px 0 8px 0
-}
-
-ul.providers li:hover {
-    cursor: pointer
-}
-
-ul.providers li {
-    background: url(/static/images/logos.png) no-repeat;
-}
-
-li#google {
-    background-position: 0px 0px;
-}
-
-li#google:hover {
-    background-position: -150px 0px;
-}
-
-li#google.press {
-    background-position: -300px 0px;
-}
-
-li#facebook {
-    background-position: 0px -50px;
-}
-
-li#facebook:hover {
-    background-position: -150px -50px;
-}
-
-li#facebook.press {
-    background-position: -300px -50px;
-}
-
-li#amazon {
-    background-position: 0px -100px;
-}
-
-li#amazon:hover {
-    background-position: -150px -100px;
-}
-
-li#amazon.press {
-    background-position: -300px -100px;
-}
-
-
-</style>
-
 <script>
-    //used to login with these IDP and get user profile
-    var AMZNappId    = '{{ providers.amazon.app_id }}';
-    //used to initialize Cognito Id
-    var CognitoIdentityPoolId = '{{ identityPoolId }}';
+  //used to login with these IDP and get user profile
+  var AMZNappId    = '{{ providers.amazon.app_id }}';
+  //used to initialize Cognito Id
+  var CognitoIdentityPoolId = '{{ identityPoolId }}';
 
-    var bucketName   = '{{ bucketName }}';
+  var bucketName   = '{{ bucketName }}';
 
-    function showWaitScreen() {
-        $("#login").fadeOut();
-        $("#wait").show();
-    }
+  function showWaitScreen() {
+    $("#login").fadeOut();
+    $("#wait").show();
+  }
 
-    function showErrorScreen() {
-        $("#login").hide();
-        $("#wait").hide();
-        $("#error").show();
-    }
+  function showErrorScreen() {
+    $("#login").hide();
+    $("#wait").hide();
+    $("#error").show();
+  }
 
-    function showResultScreen() {
-        $("#wait").hide();
-        $("#downloads").fadeIn();
-    }
+  function showResultScreen() {
+    $("#wait").hide();
+    $("#downloads").fadeIn();
+  }
 
-    $(document).ready(function () {
+  $(document).ready(function () {
 
-      $("li#amazon").click(function () {
-          console.log('--- current URL : ' + document.documentURI);
-          amazon.Login.setClientId(AMZNappId);
-          amazon.Login.authorize({ scope: 'profile' }, document.URL);
-          return false;
-      });
-
-      //use args provided as callback by Amazon Identity provider
-      var access_token = $.url().param('access_token');
-      if (access_token != null) {
-          showWaitScreen();
-          loadS3Bucket(access_token, 'www.amazon.com');
-      }
+    $("li#amazon").click(function () {
+      amazon.Login.setClientId(AMZNappId);
+      amazon.Login.authorize({ scope: 'profile' }, document.URL);
+      return false;
     });
 
-
-    function parseEntry(contents, s3) {
-      var data = contents.Key.split('/');
-      if (data.length < 2) {
-        dump("ERROR: "+contents.Key+"\n");
-        return null;
-      }
-      var params = {Bucket: bucketName, Key: contents.Key};
-      var entry = {
-        url: s3.getSignedUrl('getObject', params),
-        size: contents.Size,
-        name: contents.Key,
-        lastmod: contents.LastModified,
-        partner: data[0],
-        version: data[1],
-        distro: data[2],
-        platform: data[3],
-        locale: data[4],
-        filename: data[5]
-      }
-      return entry;
+    //use args provided as callback by Amazon Identity provider
+    var access_token = $.url().param('access_token');
+    if (access_token != null) {
+      showWaitScreen();
+      loadS3Bucket(access_token, 'www.amazon.com');
     }
+  });
 
-    function gatherEntries(data, s3) {
-      var entries = {};
-      var platforms = {};
-      for (i = 0; i < data.Contents.length; i++) {
-        var entry = parseEntry(data.Contents[i], s3);
-        platforms[entry.platform] = "";
-        //console.log(entry);
-        if (!entries[entry.version])
-          entries[entry.version] = {};
-        if (!entries[entry.version][entry.distro])
-          entries[entry.version][entry.distro] = {};
-        if (!entries[entry.version][entry.distro][entry.locale])
-          entries[entry.version][entry.distro][entry.locale] = {};
-        if (!entries[entry.version][entry.distro][entry.locale][entry.platform])
-          entries[entry.version][entry.distro][entry.locale][entry.platform] = entry;
-      }
-      return { "entries": entries, "platforms": platforms };
+
+  function parseEntry(contents, s3) {
+    var data = contents.Key.split('/');
+    if (data.length < 2) {
+      return null;
     }
+    var params = {Bucket: bucketName, Key: contents.Key};
+    var entry = {
+      url: s3.getSignedUrl('getObject', params),
+      size: contents.Size,
+      name: contents.Key,
+      lastmod: contents.LastModified,
+      partner: data[0],
+      version: data[1],
+      distro: data[2],
+      platform: data[3],
+      locale: data[4],
+      filename: data[5]
+    }
+    return entry;
+  }
 
-    function buildTables(data, s3) {
-      var info = gatherEntries(data, s3);
-      var entries = info.entries;
-      console.log(entries);
-      var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X', 'linux-i686':'Linux', 'linux-x86_64':'Linux64'};
-      var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx', 'linux-i686':'linux', 'linux-x86_64':'linux64'};
-      for (var version in entries) {
-        var table = $('<table></table>').addClass('table').addClass('table-striped');
-        table.append("<caption><h3>"+data.Prefix+" "+version+"</h3></caption>")
-        var tr = $('<tr/>');
-        tr.append('<th>Distro</th><th>Language</th>');
-        for (var plat in info.platforms) {
-          tr.append('<th>' + (platformNames[plat] || plat) + '</th>');
-        }
-        var th = $('<thead id="header"/>');
-        th.append(tr);
-        table.append(th);
-        for (var distro in entries[version]) {
-          for (var locale in entries[version][distro]) {
-            var t = $("<tr class='row'>").append("<td class='distro'>" + distro + "</td>")
-                                         .append("<td class='locale'>" + locale + "</td>");
-            for (var plat in info.platforms) {
-              if (entries[version][distro][locale][plat])
-                t.append("<td class='download "+platforms[plat]+"'><a href='" + entries[version][distro][locale][plat].url + "'>Download</a></td>");
-              else
-                t.append("<td class='"+platforms[plat]+"'/>");
-            }
-            table.append(t);
+  function gatherEntries(data, s3) {
+    var entries = {};
+    var platforms = {};
+    for (i = 0; i < data.Contents.length; i++) {
+      var entry = parseEntry(data.Contents[i], s3);
+      platforms[entry.platform] = "";
+      //console.log(entry);
+      if (!entries[entry.version])
+        entries[entry.version] = {};
+      if (!entries[entry.version][entry.distro])
+        entries[entry.version][entry.distro] = {};
+      if (!entries[entry.version][entry.distro][entry.locale])
+        entries[entry.version][entry.distro][entry.locale] = {};
+      if (!entries[entry.version][entry.distro][entry.locale][entry.platform])
+        entries[entry.version][entry.distro][entry.locale][entry.platform] = entry;
+    }
+    return { "entries": entries, "platforms": platforms };
+  }
+
+  function buildTables(data, s3) {
+    var info = gatherEntries(data, s3);
+    var entries = info.entries;
+    var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X', 'linux-i686':'Linux', 'linux-x86_64':'Linux64'};
+    var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx', 'linux-i686':'linux', 'linux-x86_64':'linux64'};
+    for (var version in entries) {
+      var table = $('<table></table>').addClass('table').addClass('table-striped');
+      table.append("<caption><h3>"+data.Prefix+" "+version+"</h3></caption>")
+      var tr = $('<tr/>');
+      tr.append('<th>Distro</th><th>Language</th>');
+      for (var plat in info.platforms) {
+        tr.append('<th>' + (platformNames[plat] || plat) + '</th>');
+      }
+      var th = $('<thead id="header"/>');
+      th.append(tr);
+      table.append(th);
+      for (var distro in entries[version]) {
+        for (var locale in entries[version][distro]) {
+          var t = $("<tr class='row'>").append("<td class='distro'>" + distro + "</td>")
+                                       .append("<td class='locale'>" + locale + "</td>");
+          for (var plat in info.platforms) {
+            if (entries[version][distro][locale][plat])
+              t.append("<td class='download "+platforms[plat]+"'><a href='" + entries[version][distro][locale][plat].url + "'>Download</a></td>");
+            else
+              t.append("<td class='"+platforms[plat]+"'/>");
           }
+          table.append(t);
         }
-        $("#downloads").append(table)
-        showResultScreen();
       }
+      $("#downloads").append(table)
+      showResultScreen();
     }
+  }
 
-    function loadS3Bucket(accessToken, provider) {
-        console.log('--- loadS3Bucket with accessToken = ' + accessToken);
-        console.log('                      provider    = ' + provider);
+  function loadS3Bucket(accessToken, provider) {
+    AWS.config.region = 'us-east-1';
+    cognitoCredentials = new AWS.CognitoIdentityCredentials({
+      IdentityPoolId: CognitoIdentityPoolId,
+      Logins: {}
+    });
+    cognitoCredentials.params.Logins["www.amazon.com"] = accessToken;
+    cognitoCredentials.expired = true;
 
-        AWS.config.region = 'us-east-1';
-        cognitoCredentials = new AWS.CognitoIdentityCredentials({
-            IdentityPoolId: CognitoIdentityPoolId,
-            Logins: {}
-        });
-        cognitoCredentials.params.Logins["www.amazon.com"] = accessToken;
-        cognitoCredentials.expired = true;
-        console.log(cognitoCredentials)
-        cognitoCredentials.getId(function(err, id) {console.log(err, id);})
+    AWS.config.credentials = cognitoCredentials;
 
-        AWS.config.credentials = cognitoCredentials;
+    cognitoCredentials.refresh(function(err) {
+      if (err) {
+        showErrorScreen();
+        return false;
+      }
 
-        console.log('Refreshing Cognito Credentials')
-        cognitoCredentials.refresh(function(err) {
-            console.log('--- identityId ', cognitoCredentials.identityId);
+      var s3 = new AWS.S3();
+
+      s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
+        if (err) {
+          $("#accessid").text(s3.config.credentials.identityId);
+          showErrorScreen();
+          return false;
+        }
+
+        for (var p in data.CommonPrefixes) {
+          var prefix = data.CommonPrefixes[p].Prefix;
+          s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
             if (err) {
-                console.log('Cognito failed to refresh : ' + err)
-                showErrorScreen();
-                return false;
+              console.log(err);
+              return false;
             }
+            buildTables(data, s3);
+          }); // end listObjects
+        }
+      });
+      // if no tables were built, user has no access to anything in s3
+    });
+  }
 
-            var s3 = new AWS.S3();
-
-            console.log('--- listObjects with bucket=' + bucketName);
-            console.log('--- credentials ', s3.config.credentials)
-            s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
-                if (err) {
-                    console.log(err);
-                    $("#accessid").text(s3.config.credentials.identityId);
-                    showErrorScreen();
-                    return false;
-                }
-
-                for (var p in data.CommonPrefixes) {
-                    var prefix = data.CommonPrefixes[p].Prefix;
-                    console.log(prefix);
-
-                    s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
-                        var entries = {};
-
-                        if (err) {
-                            console.log(err);
-                            //showErrorScreen();
-                            return false;
-                        }
-        
-                        console.log(data);
-                        buildTables(data, s3);
-                    }); // end listObjects
-                }
-            });
-            // if no tables were built, user has no access to anything in s3
-        })
-    }
-
-    // Callback for Amazon SDK
-    window.onAmazonLoginReady = function () {
-        amazon.Login.setClientId(AMZNappId);
-    };
+  // Callback for Amazon SDK
+  window.onAmazonLoginReady = function () {
+    amazon.Login.setClientId(AMZNappId);
+  };
 </script>
 {% endblock %}
 
 {% block header %}
 <header id="main-feature">
-  <h1>Partner Firefox Downloads</h1>
+  <h1>Partner Downloads</h1>
     <h2>
   </h2>
 </header>
@@ -260,31 +173,30 @@ li#amazon.press {
 
 {% block content %}
 <div id="login">
-    <h1>Login</h1>
-
-    <p class="lead">Please login to continue...</p>
-    <ul class="providers">
-      <li id="amazon" class="on">
-          <span style="text-indent: -9999px; display: inline-block;">amazon</span>
-      </li>
-  </ul>
+  <ul class="providers">
+    <li id="amazon" class="on">
+      <span style="text-indent: -9999px; display: inline-block;">amazon</span>
+    </li>
+  </ul><br/>
+  <p class="lead">Please login to continue...</p>
 </div>
 
-<div id="downloads" style="display:none">
+<div id="downloads" style="display:none"></div>
+
+<div id="wait" style="display:none; position: relative; padding 100px;">
+  <div style="position: relative; top: 50%;left: 50%;margin-left: -64px;">
+  <img src="/static/images/loading.png"></img>
+  </div>
 </div>
 
-<div id="wait" style="position: fixed;top: 50%;left: 50%;margin-top: -55px;margin-left: -30px;display:none">
-    <img src="/static/images/ajax-loader.gif"></img>
-</div>
+<div id="error" style="display:none">
+  <h1>Access Denied</h1>
 
-<div id="error" class="jumbotron" style="display:none">
-    <h1>Access Denied</h1>
-
-    <p class="lead">Your account does not have access to download any partner
-    distributions.  If you feel this is in error, please contact your partner
-    representative at Mozilla.  Provide them with this access id:
-    <span id="accessid"></span></p>
-    <a class="btn btn-large btn-inverse" href="/{{ locale }}/downloads/">Try Again</a>
+  <p class="lead">Your account does not have access to download any partner
+  distributions.  If you feel this is in error, please contact your partner
+  representative at Mozilla.  Provide them with this access id:
+  <span id="accessid"></span></p>
+  <a class="btn btn-large btn-inverse" href="/{{ locale }}/downloads/">Try Again</a>
 </div>
 
 {% endblock %}

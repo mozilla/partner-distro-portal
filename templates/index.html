@@ -1,41 +1,19 @@
 {% extends "layout.html" %}
 {% block head %}
 <style>
-  .aside {
-    float: right;
-    width: 300px;
-    padding: 0;
-    margin: 0;
-    min-height: 360px;
-    /*max-width: 320px;*/
-    position: relative;
-    overflow: hidden;
-    background-image: url("/images/home.png");
-  }
-  #main-feature {
-    overflow: hidden;
-    
-  }
-  #main-feature, #main-content, #wrapper, #content-wrapper {
-    padding: 0px;
-  }
-  #colophon {
-    margin-top: 0;
-  }
-  .aside img {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
+#main-feature, #main-content, #wrapper, #content-wrapper {
+  padding: 0px;
+}
 </style>
-  <script>
-    $(document).ready(function($) {
-      $('.imageswap').hover(function(event) {
-        $("#image-rotator").css("background-image", "url("+$(event.target).attr("data-image")+")");
-        
-      });
+
+<script>
+  $(document).ready(function($) {
+    $('.imageswap').hover(function(event) {
+      $("#image-rotator").css("background-image", "url("+$(event.target).attr("data-image")+")");
+      
     });
-  </script>
+  });
+</script>
 {% endblock %}
 
 {% block header %}
@@ -56,7 +34,3 @@
 </header>
 {% endblock %}
 
-
-{% block content %}
-
-{% endblock %}
