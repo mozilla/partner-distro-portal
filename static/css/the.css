@@ -142,6 +142,21 @@ header {
   float: right;
 }
 
-
-
+table {
+  padding: 10px 0 20px;
+}
+td {
+  padding: 0 20px;
+  vertical-align: top;
+}
+td:first-child {
+  min-width: 130px;
+}
+.col1 {
+  width: 130px;
+}
+.col2 {
+  width: 640px;
+  float: right;
+}
 
