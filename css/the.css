@@ -1,0 +1,162 @@
+
+/* sprite */
+#login {
+  text-align: center;
+  position: relative;
+}
+#login p {
+  clear: both;
+}
+ul.providers {
+  position: relative;
+  /*width: 150px;*/
+  padding: 0;
+  margin: 0 5px 5px 5px;
+  float: left;
+  list-style-type: none;
+  left: 50%;
+  margin-left: -75px;
+}
+
+ul.providers li {
+  height: 50px;
+  width: 150px;
+  padding: 0;
+  margin: 10px 0 8px 0
+}
+
+ul.providers li:hover {
+  cursor: pointer
+}
+
+ul.providers li {
+  background: url(/images/logos.png) no-repeat;
+}
+
+li#google {
+  background-position: 0px 0px;
+}
+
+li#google:hover {
+  background-position: -150px 0px;
+}
+
+li#google.press {
+  background-position: -300px 0px;
+}
+
+li#facebook {
+  background-position: 0px -50px;
+}
+
+li#facebook:hover {
+  background-position: -150px -50px;
+}
+
+li#facebook.press {
+  background-position: -300px -50px;
+}
+
+li#amazon {
+  background-position: 0px -100px;
+}
+
+li#amazon:hover {
+  background-position: -150px -100px;
+}
+
+li#amazon.press {
+  background-position: -300px -100px;
+}
+
+header {
+  padding: 0;
+  margin: 0;
+}
+
+#content-wrapper {
+  padding-bottom: 40px;
+  width: 1000px;
+  margin: 0px auto;
+  position: relative;
+}
+
+#main-content {
+  padding-top: 40px;
+  background: url("//mozorg.cdn.mozilla.net/media/img/sandstone/grain.855f29e0c686.png") repeat scroll 0% 0%, transparent radial-gradient(circle farthest-side at center bottom , #EAEFF2 0%, #D4DDE4 100%) repeat scroll 0% 0%;
+}
+#colophon {
+  margin: 0;
+}
+#colophon {
+  margin-top: 0;
+}
+
+#wrapper, #main-content, #main-feature {
+  padding-bottom: 0;
+}
+
+#main-feature {
+  overflow: hidden;
+}
+
+#desktop-image {
+  padding: 0;
+  margin: 0;
+  margin-top: 40px;
+  min-height: 130px;
+  /*max-width: 320px;*/
+  overflow: hidden;
+  background: no-repeat center top url("/images/home.png");
+}
+#image-rotator {
+  min-height: 360px;
+  background-image: url("/images/home.png");
+}
+
+.sidebar {
+  float: left;
+  width: 140px;
+  margin: 0px 10px;
+  padding-right: 10px;
+}
+
+.aside {
+  float: right;
+  width: 300px;
+  padding: 0;
+  margin: 0;
+  min-height: 240px;
+  position: relative;
+  overflow: hidden;
+}
+
+.aside img {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.main-column {
+  width: 770px;
+  float: right;
+}
+
+table {
+  padding: 10px 0 20px;
+}
+td {
+  padding: 0 20px;
+  vertical-align: top;
+}
+td:first-child {
+  min-width: 130px;
+}
+.col1 {
+  width: 130px;
+}
+.col2 {
+  width: 640px;
+  float: right;
+}
+

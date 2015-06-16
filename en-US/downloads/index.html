@@ -1,0 +1,330 @@
+<!doctype html>
+<html class="windows x86 no-js" lang="en" dir="ltr" data-latest-firefox="38.0.1" data-esr-versions="[31, 38]">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <link rel="shortcut icon" href="//mozorg.cdn.mozilla.net/media/img/favicon.ico">
+  <title>Firefox Partner Distributions</title>
+
+  <link href="//mozorg.cdn.mozilla.net/media/css/tabzilla-min.c4ec201287fa.css" rel="stylesheet" type="text/css" />    
+  <!--[if lte IE 8]>
+  <script src="//mozorg.cdn.mozilla.net/media/js/libs/html5shiv.d580a4cd1cb4.js"></script>
+  <![endif]-->
+  <!--[if lte IE 7]>
+  <link href="//mozorg.cdn.mozilla.net/media/css/oldIE-bundle.a0b24cf439aa.css" rel="stylesheet" type="text/css" />
+  <![endif]-->
+  <!--[if !lte IE 7]><!-->
+  <link href="//mozorg.cdn.mozilla.net/media/css/firefox_all-bundle.55fbe350e32d.css" rel="stylesheet" type="text/css" />
+  <!--<![endif]-->
+  <link href="/css/the.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript" src="//mozorg.cdn.mozilla.net/media/js/site-bundle.4d72c30b1a11.js" charset="utf-8"></script>
+  <script type="text/javascript" src="/js/jquery-2.0.3.min.js"></script>
+
+  <script>
+$(document).ready(function($) {
+  $('#language').change(function(event) {
+    location = "/"+$('#language option:selected').val()+"/";
+  });
+});
+
+  </script>
+
+  
+<script>
+  //used to login with these IDP and get user profile
+  var AMZNappId    = 'amzn1.application-oa2-client.3a4ba0dfcda1472f86589f6de64a3495';
+  //used to initialize Cognito Id
+  var CognitoIdentityPoolId = 'us-east-1:397f7dd9-2362-4120-a11b-64f1eefc37b7';
+
+  var bucketName   = 'scaraveo-test';
+
+  function showWaitScreen() {
+    $("#login").fadeOut();
+    $("#wait").show();
+  }
+
+  function showErrorScreen() {
+    $("#login").hide();
+    $("#wait").hide();
+    $("#error").show();
+  }
+
+  function showResultScreen() {
+    $("#wait").hide();
+    $("#downloads").fadeIn();
+  }
+
+  $(document).ready(function () {
+
+    $("li#amazon").click(function () {
+      amazon.Login.setClientId(AMZNappId);
+      amazon.Login.authorize({ scope: 'profile' }, document.URL);
+      return false;
+    });
+
+    //use args provided as callback by Amazon Identity provider
+    var access_token = $.url().param('access_token');
+    if (access_token != null) {
+      showWaitScreen();
+      loadS3Bucket(access_token, 'www.amazon.com');
+    }
+  });
+
+
+  function parseEntry(contents, s3) {
+    var data = contents.Key.split('/');
+    if (data.length < 2) {
+      return null;
+    }
+    var params = {Bucket: bucketName, Key: contents.Key};
+    var entry = {
+      url: s3.getSignedUrl('getObject', params),
+      size: contents.Size,
+      name: contents.Key,
+      lastmod: contents.LastModified,
+      partner: data[0],
+      version: data[1],
+      distro: data[2],
+      platform: data[3],
+      locale: data[4],
+      filename: data[5]
+    }
+    return entry;
+  }
+
+  function gatherEntries(data, s3) {
+    var entries = {};
+    var platforms = {};
+    for (i = 0; i < data.Contents.length; i++) {
+      var entry = parseEntry(data.Contents[i], s3);
+      platforms[entry.platform] = "";
+      //console.log(entry);
+      if (!entries[entry.version])
+        entries[entry.version] = {};
+      if (!entries[entry.version][entry.distro])
+        entries[entry.version][entry.distro] = {};
+      if (!entries[entry.version][entry.distro][entry.locale])
+        entries[entry.version][entry.distro][entry.locale] = {};
+      if (!entries[entry.version][entry.distro][entry.locale][entry.platform])
+        entries[entry.version][entry.distro][entry.locale][entry.platform] = entry;
+    }
+    return { "entries": entries, "platforms": platforms };
+  }
+
+  function buildTables(data, s3) {
+    var info = gatherEntries(data, s3);
+    var entries = info.entries;
+    var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X', 'linux-i686':'Linux', 'linux-x86_64':'Linux64'};
+    var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx', 'linux-i686':'linux', 'linux-x86_64':'linux64'};
+    for (var version in entries) {
+      var table = $('<table></table>').addClass('table').addClass('table-striped');
+      table.append("<caption><h3>"+data.Prefix+" "+version+"</h3></caption>")
+      var tr = $('<tr/>');
+      tr.append('<th>Distro</th><th>Language</th>');
+      for (var plat in info.platforms) {
+        tr.append('<th>' + (platformNames[plat] || plat) + '</th>');
+      }
+      var th = $('<thead id="header"/>');
+      th.append(tr);
+      table.append(th);
+      for (var distro in entries[version]) {
+        for (var locale in entries[version][distro]) {
+          var t = $("<tr class='row'>").append("<td class='distro'>" + distro + "</td>")
+                                       .append("<td class='locale'>" + locale + "</td>");
+          for (var plat in info.platforms) {
+            if (entries[version][distro][locale][plat])
+              t.append("<td class='download " + platforms[plat] + "'><a" +
+                       "href='" + entries[version][distro][locale][plat].url + "'>Download</a></td>");
+            else
+              t.append("<td class='"+platforms[plat]+"'/>");
+          }
+          table.append(t);
+        }
+      }
+      $("#downloads").append(table)
+      showResultScreen();
+    }
+  }
+
+  function loadS3Bucket(accessToken, provider) {
+    AWS.config.region = 'us-east-1';
+    cognitoCredentials = new AWS.CognitoIdentityCredentials({
+      IdentityPoolId: CognitoIdentityPoolId,
+      Logins: {}
+    });
+    cognitoCredentials.params.Logins["www.amazon.com"] = accessToken;
+    cognitoCredentials.expired = true;
+
+    AWS.config.credentials = cognitoCredentials;
+
+    cognitoCredentials.refresh(function(err) {
+      if (err) {
+        showErrorScreen();
+        return false;
+      }
+
+      var s3 = new AWS.S3();
+
+      s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
+        if (err) {
+          $("#accessid").text(s3.config.credentials.identityId);
+          showErrorScreen();
+          return false;
+        }
+
+        for (var p in data.CommonPrefixes) {
+          var prefix = data.CommonPrefixes[p].Prefix;
+          s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
+            if (err) {
+              console.log(err);
+              return false;
+            }
+            buildTables(data, s3);
+          }); // end listObjects
+        }
+      });
+      // if no tables were built, user has no access to anything in s3
+    });
+  }
+
+  // Callback for Amazon SDK
+  window.onAmazonLoginReady = function () {
+    amazon.Login.setClientId(AMZNappId);
+  };
+</script>
+
+</head>
+<body id="firefox-all" class="html-ltr sky firefox-all-release " >
+  <div id="outer-wrapper">
+  <div id="swoop-wrapper">
+  <div id="wrapper">
+    <header id="masthead">
+      <a href="/en-US/" id="tabzilla" data-infobar="translation">Mozilla</a>
+
+      <nav id="nav-main" role="navigation">
+        <span id="nav-main-toggle" class="toggle" role="button" aria-controls="nav-main-menu" aria-expanded="false" tabindex="0">Menu</span>
+        <ul id="nav-main-menu">
+        <li class="first"><a href="/en-US/desktop/" tabindex="-1">Desktop</a></li>
+        <li><a href="/en-US/android/" tabindex="-1">Android</a></li>
+        <li><a href="https://mobilepartners.mozilla.org" tabindex="-1">Firefox OS</a></li>
+        <li><a rel="external" href="https://www.mozilla.org/en-US/about/partnerships/" tabindex="-1">Partner with Us</a></li>
+        <li><a href="/en-US/downloads/" tabindex="-1">Downloads</a></li>
+        </ul>
+      </nav>
+
+      <h2><img src="//mozorg.cdn.mozilla.net/media/img/firefox/new/header-firefox.png?2013-06" alt="Firefox for desktop"></h2>
+    </header>
+
+
+<header id="main-feature">
+  <h1>Partner Downloads</h1>
+    <h2>
+  </h2>
+</header>
+
+    </div><!-- close #wrapper -->
+  </div><!-- close #swoop-wrapper -->
+<main id="main-content" role="main" class="pager pager-with-tabs pager-no-history">
+  <div id="content-wrapper">
+  <div class="container">
+  
+<div id="login">
+  <ul class="providers">
+    <li id="amazon" class="on">
+      <span style="text-indent: -9999px; display: inline-block;">amazon</span>
+    </li>
+  </ul><br/>
+  <p class="lead">Please login to continue...</p>
+</div>
+
+<div id="downloads" style="display:none"></div>
+
+<div id="wait" style="display:none; position: relative; padding 100px;">
+  <div style="position: relative; top: 50%;left: 50%;margin-left: -64px;">
+  <img src="/images/loading.png"></img>
+  </div>
+</div>
+
+<div id="error" style="display:none">
+  <h1>Access Denied</h1>
+
+  <p class="lead">Your account does not have access to download any partner
+  distributions.  If you feel this is in error, please contact your partner
+  representative at Mozilla.  Provide them with this access id:
+  <span id="accessid"></span></p>
+  <a class="btn btn-large btn-inverse" href="/en-US/downloads/">Try Again</a>
+</div>
+
+
+  </div>
+  </div>
+</main>
+
+
+<footer id="colophon" class="">
+  <nav class="row">
+    <div class="col col-1">
+      <h1 class="logo"><a href="https://www.mozilla.org/">Mozilla</a></h1>
+      <p class="license">Portions of this content are ©1998–2015 by individual mozilla.org contributors. Content available under a <a href="https://www.mozilla.org/foundation/licensing/website-content/">Creative Commons license</a>.</p>
+    </div>
+    <div class="col col-2">
+      <ul class="links-join">
+        <li><a href="https://www.mozilla.org/contact/spaces/">Contact Us</a></li>
+        <li class="wrap"><a href="https://www.mozilla.org/about/partnerships/">Partner with Us</a></li>
+        <li class="clear"><a href="https://sendto.mozilla.org/page/contribute/givenow-seq?preset=2&amp;source=mozillaorg_footer&amp;ref=EOYFR2014&amp;utm_campaign=EOYFR2014&amp;utm_source=mozilla.org&amp;utm_medium=referral&amp;utm_content=mozillaorg_footer" class="donate">Donate</a></li>
+        <li class="wrap"><a href="https://www.mozilla.org/contribute/friends/">Firefox Friends</a></li>
+        <li class="clear"><a href="https://wiki.mozilla.org/Webdev/GetInvolved/mozilla.org">Contribute to this site</a></li>
+      </ul>
+      <ul class="links-legal">
+        <li><a href="https://www.mozilla.org/privacy/">Privacy</a></li>
+        <li class="wrap"><a href="https://www.mozilla.org/privacy/websites/#cookies">Cookies</a></li>
+        <li class="wrap"><a href="https://www.mozilla.org/about/legal/">Legal</a></li>
+        <li class="clear"><a href="https://www.mozilla.org/about/legal/fraud-report/">Report Trademark Abuse</a></li>
+      </ul>
+    </div>
+    <div class="col col-3">
+      <ul class="links-social">
+        <li>
+          Mozilla:
+          <ul>
+            <li><a href="https://twitter.com/mozilla">Twitter<span> (@mozilla)</span></a></li>
+            <li><a href="https://www.facebook.com/mozilla">Facebook<span> (Mozilla)</span></a></li>
+          </ul>
+        </li>
+        <li>
+          Firefox:
+          <ul>
+            <li><a href="https://twitter.com/firefox">Twitter<span> (@firefox)</span></a></li>
+            <li><a href="https://www.facebook.com/Firefox">Facebook<span> (Firefox)</span></a></li>
+            <li><a href="https://www.youtube.com/firefoxchannel">YouTube<span> (firefoxchannel)</span></a></li>
+          </ul>
+        </li>
+      </ul>
+      <div class="lang-switcher">
+        
+      </div>
+    </div>
+  </nav>
+</footer>
+
+</div><!-- close #outer-wrapper -->
+
+  <!--[if IE 9]>
+  <script src="//mozorg.cdn.mozilla.net/media/js/libs/matchMedia.3fd01d1af18b.js"></script>
+  <![endif]-->
+  
+  <script type="text/javascript" src="//mozorg.cdn.mozilla.net/media/js/firefox-resp-bundle.a080f6f60e2f.js" charset="utf-8"></script>
+  <script src="//mozorg.cdn.mozilla.net/en-US/tabzilla/tabzilla.js"></script>
+  <script type="text/javascript" src="//mozorg.cdn.mozilla.net/media/js/firefox_all-bundle.248a13e96a18.js" charset="utf-8"></script>
+  <script type="text/javascript" src="/js/purl.js"></script>
+
+  
+<!-- AWS SDK -->
+<script type="text/javascript" src="https://sdk.amazonaws.com/js/aws-sdk-2.1.8.min.js"></script>
+<!-- AMZN IDP SDK -->
+<script type="text/javascript" src="https://api-cdn.amazon.com/sdk/login1.js?v=3"></script>
+
+
+</body>
+</html>
