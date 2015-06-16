@@ -103,7 +103,8 @@
                                        .append("<td class='locale'>" + locale + "</td>");
           for (var plat in info.platforms) {
             if (entries[version][distro][locale][plat])
-              t.append("<td class='download "+platforms[plat]+"'><a href='" + entries[version][distro][locale][plat].url + "'>Download</a></td>");
+              t.append("<td class='download " + platforms[plat] + "'><a" +
+                       "href='" + entries[version][distro][locale][plat].url + "'>Download</a></td>");
             else
               t.append("<td class='"+platforms[plat]+"'/>");
           }
@@ -185,7 +186,7 @@
 
 <div id="wait" style="display:none; position: relative; padding 100px;">
   <div style="position: relative; top: 50%;left: 50%;margin-left: -64px;">
-  <img src="/static/images/loading.png"></img>
+  <img src="/images/loading.png"></img>
   </div>
 </div>
 

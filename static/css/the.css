@@ -30,7 +30,7 @@ ul.providers li:hover {
 }
 
 ul.providers li {
-  background: url(/static/images/logos.png) no-repeat;
+  background: url(/images/logos.png) no-repeat;
 }
 
 li#google {
