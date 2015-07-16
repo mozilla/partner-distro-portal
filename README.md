@@ -1,26 +1,47 @@
 S3 and Cognito Setup steps:
 ===========================
 
+- Create a Google App at https://console.developers.google.com
+  - In the dropdown, select "New Project"
+  - 
+  - after creating it, under APIs & Auth
+  - Select APIs, enable Google+ API
+  - Select Credentials
+    - Create a "Public Access API", you'll need the API Key
+    - Create a "Client ID for web application", you'll need the Client ID
+- Go to AWS console (instructions for Google)
+  - Create (if it doesn't exist) a "Identity Provider"
+    - use accounts.google.com
+    - the "audience" is the application client id from above
+    * an identity provider can have multiple audiences, if the google provider
+      already exists, edit it and add your client id as a new audience
+  - Create a Cognito Identity Pool
+    - add an Open ID authentication provider, select accounts.google.com
+  - create a new s3 bucket
+  - create a policy per partner (see below example)
+    * attach the role created for the identity pool, likely named Cognito_NAMEAuthRole
+    - Each statement must list all identities that have access to this partners objects
+    - The first statement for ListBucket must use explicit identities to prevent
+      public access, and limits the list to only the first part of the path
+    - The second statement provides ListBucket access to specific sub-paths with
+      no delimiter.  This returns the full path of all objects under the prefix.
+    - The third statement allows GetObject so binaries can be downloaded
+    - This pattern allows multiple users per partner by adding more identity values
+    TODO: investigate if there is an easy way to pre-fill the identity value
+          (without requiring partner to login and retreive it for us)
+
 - copy config.json.in to config.json
-- create a new s3 bucket, add the bucket name to config.json
-- create Amazon App on https://sellercentral.amazon.com/
-  - add *client* id and secrete to config.json (as app_id and app_secret)
-- create cognito identity pool
-  - add the identity pool id to config.json
-  - under "Authenticated Providers" choose amazon and add the app id
-    - use app id from above app (not the client id)
-  TODO: future use of personal or FxA?
-- create a policy per partner (see below example)
-  * attach the role created for the identity pool, likely named Cognito_NAMEAuthRole
-  - Each statement must list all identities that have access to this partners objects
-  - The first statement for ListBucket must use explicit identities to prevent
-    public access, and limits the list to only the first part of the path
-  - The second statement provides ListBucket access to specific sub-paths with
-    no delimiter.  This returns the full path of all objects under the prefix.
-  - The third statement allows GetObject so binaries can be downloaded
-  - This pattern allows multiple users per partner by adding more identity values
-  TODO: investigate if there is an easy way to pre-fill the identity value
-        (without requiring partner to login and retreive it for us)
+  - add the client id, bucket name, identity pool id, apikey and role_arn
+
+
+Using Amazon Login (alternative, not used currently)
+  - create Amazon App on https://sellercentral.amazon.com/
+    - add *client* id and secrete to config.json (as app_id and app_secret)
+  - create cognito identity pool
+    - add the identity pool id to config.json
+    - under "Authenticated Providers" choose amazon and add the app id
+      - use app id from above app (not the client id)
+
 
 ```  
 {

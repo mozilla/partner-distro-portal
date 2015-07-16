@@ -13,7 +13,11 @@ h2 select {
 </style>
 <script>
   //used to login with these IDP and get user profile
+{% if enableAmazon %}
   var AMZNappId    = '{{ providers.amazon.app_id }}';
+{% endif %}
+  var GoogleAppId  = '{{ providers.google.app_id }}';
+  var GoogleAPIKey = '{{ providers.google.api_key }}';
   //used to initialize Cognito Id
   var CognitoIdentityPoolId = '{{ identityPoolId }}';
 
@@ -37,7 +41,25 @@ h2 select {
 
   $(document).ready(function () {
 
-    $("li#amazon").click(function () {
+    $("button#googleProvider").click(function () {
+        // get authorization to use private data
+        var  scopes = 'openid profile';
+        gapi.auth.authorize({client_id: GoogleAppId, scope: scopes, immediate: false, response_type:"token id_token"}, function(authResult) {
+            if (authResult && !authResult.error) {
+                //console.log('--- Google Authentication successful');
+                //console.log(authResult);
+                showWaitScreen();
+                loadS3Bucket(authResult.id_token, 'accounts.google.com');
+            } else {
+                console.log('--- Google Authentication failed');
+                showErrorScreen();
+            }
+        });
+        return false;
+    });
+
+{% if enableAmazon %}
+    $("button#amazon").click(function () {
       amazon.Login.setClientId(AMZNappId);
       amazon.Login.authorize({ scope: 'profile' }, document.URL);
       return false;
@@ -49,6 +71,7 @@ h2 select {
       showWaitScreen();
       loadS3Bucket(access_token, 'www.amazon.com');
     }
+{% endif %}
   });
 
 
@@ -152,26 +175,33 @@ h2 select {
   }
 
   function loadS3Bucket(accessToken, provider) {
+    //console.log('--- loadS3Bucket with accessToken = ', accessToken);
+    //console.log('                      provider    = ', provider);
+    
     AWS.config.region = 'us-east-1';
+
     cognitoCredentials = new AWS.CognitoIdentityCredentials({
       IdentityPoolId: CognitoIdentityPoolId,
       Logins: {}
     });
-    cognitoCredentials.params.Logins["www.amazon.com"] = accessToken;
+    cognitoCredentials.params.Logins[provider] = accessToken;
     cognitoCredentials.expired = true;
 
     AWS.config.credentials = cognitoCredentials;
 
     cognitoCredentials.refresh(function(err) {
       if (err) {
+        console.log(err);
         showErrorScreen();
         return false;
       }
 
       var s3 = new AWS.S3();
 
+      //console.log('--- listObjects with bucket=' + bucketName + '\nand credentials=' + s3.config.credentials);
       s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
         if (err) {
+          console.log(s3.config.credentials);
           $("#accessid").text(s3.config.credentials.identityId);
           showErrorScreen();
           return false;
@@ -181,7 +211,7 @@ h2 select {
           var prefix = data.CommonPrefixes[p].Prefix;
           s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
             if (err) {
-              console.log(err);
+              //console.log(err);
               return false;
             }
             buildTables(data, s3);
@@ -192,9 +222,15 @@ h2 select {
     });
   }
 
+{% if enableAmazon %}
   // Callback for Amazon SDK
   window.onAmazonLoginReady = function () {
     amazon.Login.setClientId(AMZNappId);
+  };
+{% endif %}
+  function onGoogleSDKLoaded() {
+      $("#googleProvider").removeAttr("disabled");
+      gapi.client.setApiKey(GoogleAPIKey);
   };
 </script>
 {% endblock %}
@@ -210,11 +246,16 @@ h2 select {
 {% block content %}
 <div id="login">
   <ul class="providers">
-    <li id="amazon" class="on">
-      <span style="text-indent: -9999px; display: inline-block;">amazon</span>
+{% if enableAmazon %}
+    <li>
+    <button id="amazon" class="on"/>
+    </button>
+    </li>
+{% endif %}
+    <li>
+    <button id="googleProvider" class="on" disabled="disabled">Sign in with Google to continue...</button>
     </li>
   </ul><br/>
-  <p class="lead">Please login to continue...</p>
 </div>
 
 <div id="downloads" style="display:none"></div>
@@ -240,6 +281,10 @@ h2 select {
 {% block scripts %}
 <!-- AWS SDK -->
 <script type="text/javascript" src="https://sdk.amazonaws.com/js/aws-sdk-2.1.8.min.js"></script>
+{% if enableAmazon %}
 <!-- AMZN IDP SDK -->
 <script type="text/javascript" src="https://api-cdn.amazon.com/sdk/login1.js?v=3"></script>
+{% endif %}
+<!-- GOOG IDP SDK -->
+<script type="text/javascript" src="https://apis.google.com/js/client.js?onload=onGoogleSDKLoaded"></script>
 {% endblock %}
