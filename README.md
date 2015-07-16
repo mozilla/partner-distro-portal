@@ -3,7 +3,6 @@ S3 and Cognito Setup steps:
 
 - Create a Google App at https://console.developers.google.com
   - In the dropdown, select "New Project"
-  - 
   - after creating it, under APIs & Auth
   - Select APIs, enable Google+ API
   - Select Credentials
