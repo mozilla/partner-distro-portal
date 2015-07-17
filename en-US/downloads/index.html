@@ -15,7 +15,7 @@
   <link href="//mozorg.cdn.mozilla.net/media/css/oldIE-bundle.a0b24cf439aa.css" rel="stylesheet" type="text/css" />
   <![endif]-->
   <!--[if !lte IE 7]><!-->
-  <link href="//mozorg.cdn.mozilla.net/media/css/firefox_all-bundle.55fbe350e32d.css" rel="stylesheet" type="text/css" />
+  <link href="//mozorg.cdn.mozilla.net/media/css/firefox_all-bundle.e6b598f59a64.css" rel="stylesheet" type="text/css" />
   <!--<![endif]-->
   <link href="/css/the.css" rel="stylesheet" type="text/css" />
   <script type="text/javascript" src="//mozorg.cdn.mozilla.net/media/js/site-bundle.4d72c30b1a11.js" charset="utf-8"></script>
@@ -31,13 +31,26 @@ $(document).ready(function($) {
   </script>
 
   
+<style>
+#main-content table .android a {
+  background-image: url("https://mozorg.cdn.mozilla.net/media/img/sandstone/buttons/download-arrow-small.a07b36c82b6a.png");
+  background-position: 8px;
+}
+h2 select {
+  vertical-align: middle;
+  margin-left: 10px;
+  font-size: .5em;
+}
+</style>
 <script>
   //used to login with these IDP and get user profile
-  var AMZNappId    = 'amzn1.application-oa2-client.3a4ba0dfcda1472f86589f6de64a3495';
-  //used to initialize Cognito Id
-  var CognitoIdentityPoolId = 'us-east-1:397f7dd9-2362-4120-a11b-64f1eefc37b7';
 
-  var bucketName   = 'scaraveo-test';
+  var GoogleAppId  = '836012001937-coqe8q00h7nqm6hju0jpn6m0v8jgo3fu.apps.googleusercontent.com';
+  var GoogleAPIKey = 'AIzaSyCg1Cb4ZEnjLLFiYiBExOXDGe6rg2e5qgs';
+  //used to initialize Cognito Id
+  var CognitoIdentityPoolId = 'us-east-1:809ebdd7-7b83-4eb4-8d29-139f21dc0079';
+
+  var bucketName   = 'fxpartners-distros';
 
   function showWaitScreen() {
     $("#login").fadeOut();
@@ -57,18 +70,24 @@ $(document).ready(function($) {
 
   $(document).ready(function () {
 
-    $("li#amazon").click(function () {
-      amazon.Login.setClientId(AMZNappId);
-      amazon.Login.authorize({ scope: 'profile' }, document.URL);
-      return false;
+    $("button#googleProvider").click(function () {
+        // get authorization to use private data
+        var  scopes = 'openid profile';
+        gapi.auth.authorize({client_id: GoogleAppId, scope: scopes, immediate: false, response_type:"token id_token"}, function(authResult) {
+            if (authResult && !authResult.error) {
+                //console.log('--- Google Authentication successful');
+                //console.log(authResult);
+                showWaitScreen();
+                loadS3Bucket(authResult.id_token, 'accounts.google.com');
+            } else {
+                console.log('--- Google Authentication failed');
+                showErrorScreen();
+            }
+        });
+        return false;
     });
 
-    //use args provided as callback by Amazon Identity provider
-    var access_token = $.url().param('access_token');
-    if (access_token != null) {
-      showWaitScreen();
-      loadS3Bucket(access_token, 'www.amazon.com');
-    }
+
   });
 
 
@@ -115,13 +134,30 @@ $(document).ready(function($) {
   function buildTables(data, s3) {
     var info = gatherEntries(data, s3);
     var entries = info.entries;
-    var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X', 'linux-i686':'Linux', 'linux-x86_64':'Linux64'};
-    var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx', 'linux-i686':'linux', 'linux-x86_64':'linux64'};
+    // nice names for table header
+    var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X',
+                         'linux-i686':'Linux', 'linux-x86_64':'Linux64',
+                         'android-x86': 'Android X86', 'android-api-9': 'Android Arm API9',
+                         'android-api-11': 'Android Arm API11'};
+    // platform to css style name
+    var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx',
+                     'linux-i686':'linux', 'linux-x86_64':'linux64',
+                     'android-x86': 'android', 'android-api-9': 'android',
+                     'android-api-11': 'android'};
+    var v = $('<select/>');
+    v.change(function(){
+      var ver = $(this).find("option:selected").attr("data");
+      $(this.parentNode.parentNode).find("table").css("display", "none");
+      $(this.parentNode.parentNode).find("table[data='"+ver+"']").css("display", "");
+    });
+
+    var h = $('<div/>');
+    $('#downloads').append(h);
     for (var version in entries) {
-      var table = $('<table></table>').addClass('table').addClass('table-striped');
-      table.append("<caption><h3>"+data.Prefix+" "+version+"</h3></caption>")
+      v.append('<option data="'+version+'">'+version+'</option>');
+      var table = $('<table style="display: none" data="'+version+'"/>').addClass('table').addClass('table-striped');
       var tr = $('<tr/>');
-      tr.append('<th>Distro</th><th>Language</th>');
+      tr.append('<th>Distro</th><th>Version</th><th>Language</th>');
       for (var plat in info.platforms) {
         tr.append('<th>' + (platformNames[plat] || plat) + '</th>');
       }
@@ -131,10 +167,11 @@ $(document).ready(function($) {
       for (var distro in entries[version]) {
         for (var locale in entries[version][distro]) {
           var t = $("<tr class='row'>").append("<td class='distro'>" + distro + "</td>")
+                                       .append("<td class='version'>" + version + "</td>")
                                        .append("<td class='locale'>" + locale + "</td>");
           for (var plat in info.platforms) {
             if (entries[version][distro][locale][plat])
-              t.append("<td class='download " + platforms[plat] + "'><a" +
+              t.append("<td class='download " + platforms[plat] + "'><a " +
                        "href='" + entries[version][distro][locale][plat].url + "'>Download</a></td>");
             else
               t.append("<td class='"+platforms[plat]+"'/>");
@@ -142,55 +179,72 @@ $(document).ready(function($) {
           table.append(t);
         }
       }
-      $("#downloads").append(table)
-      showResultScreen();
+      h.append(table);
     }
+    var wrap = $('<h2>' + data.Prefix.substr(0, data.Prefix.length-1) + '</h2>');
+    wrap.append(v);
+    h.prepend(wrap);
+    $("#downloads select option:last-child").attr("selected", true);
+    $("#downloads > div > table:last-child").css("display", "");
+
+    showResultScreen();
+  }
+
+  function s3ObjectsForPrefix(s3, bucketName, prefix) {
+    s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
+      if (err) {
+        console.log(prefix, data, err);
+        return false;
+      }
+      buildTables(data, s3);
+    }); // end listObjects
   }
 
   function loadS3Bucket(accessToken, provider) {
+    //console.log('--- loadS3Bucket with accessToken = ', accessToken);
+    //console.log('                      provider    = ', provider);
+    
     AWS.config.region = 'us-east-1';
+
     cognitoCredentials = new AWS.CognitoIdentityCredentials({
       IdentityPoolId: CognitoIdentityPoolId,
       Logins: {}
     });
-    cognitoCredentials.params.Logins["www.amazon.com"] = accessToken;
+    cognitoCredentials.params.Logins[provider] = accessToken;
     cognitoCredentials.expired = true;
 
     AWS.config.credentials = cognitoCredentials;
 
     cognitoCredentials.refresh(function(err) {
       if (err) {
+        console.log(err);
         showErrorScreen();
         return false;
       }
 
       var s3 = new AWS.S3();
 
+      console.log('--- listObjects with bucket=' + bucketName + '\nand credentials=', s3.config.credentials);
       s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
         if (err) {
+          console.log(s3.config.credentials);
           $("#accessid").text(s3.config.credentials.identityId);
           showErrorScreen();
           return false;
         }
 
         for (var p in data.CommonPrefixes) {
-          var prefix = data.CommonPrefixes[p].Prefix;
-          s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
-            if (err) {
-              console.log(err);
-              return false;
-            }
-            buildTables(data, s3);
-          }); // end listObjects
+          s3ObjectsForPrefix(s3, bucketName, data.CommonPrefixes[p].Prefix);
         }
       });
       // if no tables were built, user has no access to anything in s3
     });
   }
 
-  // Callback for Amazon SDK
-  window.onAmazonLoginReady = function () {
-    amazon.Login.setClientId(AMZNappId);
+
+  function onGoogleSDKLoaded() {
+      $("#googleProvider").removeAttr("disabled");
+      gapi.client.setApiKey(GoogleAPIKey);
   };
 </script>
 
@@ -231,11 +285,11 @@ $(document).ready(function($) {
   
 <div id="login">
   <ul class="providers">
-    <li id="amazon" class="on">
-      <span style="text-indent: -9999px; display: inline-block;">amazon</span>
+
+    <li>
+    <button id="googleProvider" class="on" disabled="disabled">Sign in with Google to continue...</button>
     </li>
   </ul><br/>
-  <p class="lead">Please login to continue...</p>
 </div>
 
 <div id="downloads" style="display:none"></div>
@@ -322,8 +376,9 @@ $(document).ready(function($) {
   
 <!-- AWS SDK -->
 <script type="text/javascript" src="https://sdk.amazonaws.com/js/aws-sdk-2.1.8.min.js"></script>
-<!-- AMZN IDP SDK -->
-<script type="text/javascript" src="https://api-cdn.amazon.com/sdk/login1.js?v=3"></script>
+
+<!-- GOOG IDP SDK -->
+<script type="text/javascript" src="https://apis.google.com/js/client.js?onload=onGoogleSDKLoaded"></script>
 
 
 </body>

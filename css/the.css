@@ -15,58 +15,16 @@ ul.providers {
   float: left;
   list-style-type: none;
   left: 50%;
-  margin-left: -75px;
+  margin-left: -250px;
 }
 
-ul.providers li {
-  height: 50px;
-  width: 150px;
-  padding: 0;
-  margin: 10px 0 8px 0
+ul.providers button {
+  padding: 15px;
+  font-size: 1.5em;
 }
 
-ul.providers li:hover {
-  cursor: pointer
-}
-
-ul.providers li {
-  background: url(/images/logos.png) no-repeat;
-}
-
-li#google {
-  background-position: 0px 0px;
-}
-
-li#google:hover {
-  background-position: -150px 0px;
-}
-
-li#google.press {
-  background-position: -300px 0px;
-}
-
-li#facebook {
-  background-position: 0px -50px;
-}
-
-li#facebook:hover {
-  background-position: -150px -50px;
-}
-
-li#facebook.press {
-  background-position: -300px -50px;
-}
-
-li#amazon {
-  background-position: 0px -100px;
-}
-
-li#amazon:hover {
-  background-position: -150px -100px;
-}
-
-li#amazon.press {
-  background-position: -300px -100px;
+#accessid {
+  font-weight: bold;
 }
 
 header {
