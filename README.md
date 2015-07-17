@@ -17,6 +17,8 @@ S3 and Cognito Setup steps:
   - Create a Cognito Identity Pool
     - add an Open ID authentication provider, select accounts.google.com
   - create a new s3 bucket
+    - permissions: CORS must be enabled on the bucket used for distro binaries
+    - permissions: authenticated users must be able to list
   - create a policy per partner (see below example)
     * attach the role created for the identity pool, likely named Cognito_NAMEAuthRole
     - Each statement must list all identities that have access to this partners objects
