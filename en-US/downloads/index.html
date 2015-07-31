@@ -224,9 +224,9 @@ h2 select {
 
       var s3 = new AWS.S3();
 
-      console.log('--- listObjects with bucket=' + bucketName + '\nand credentials=', s3.config.credentials);
+      //console.log('--- listObjects with bucket=' + bucketName + '\nand credentials=', s3.config.credentials);
       s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
-        if (err) {
+        if (err || data.CommonPrefixes.length < 1) {
           console.log(s3.config.credentials);
           $("#accessid").text(s3.config.credentials.identityId);
           showErrorScreen();
