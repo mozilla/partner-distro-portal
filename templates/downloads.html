@@ -30,6 +30,23 @@ h2 select {
   var bucketName   = '{{ bucketName }}';
   var s3;
 
+  var vparts = /(\d+)\.(\d+)(\.(\d+))?(b(\d+))?(-(\d+))/;
+  function compareVersion(a,b) {
+    var ap = vparts.exec(a);
+    var bp = vparts.exec(b);
+    console.log(a,ap,b,bp);
+    // major
+    if (ap[1] != bp[1]) return ap[1] - bp[1];
+    // minor
+    if (ap[2] != bp[2]) return ap[2] - bp[2];
+    // point
+    if (ap[4] || bp[4]) return (ap[4] || 0) - (bp[4] || 0);
+    // beta lower than release
+    if (ap[6] || bp[6]) return (ap[6] || 99) - (bp[6] || 99);
+    // build
+    return ap[8] - bp[8];
+  }
+
   function showWaitScreen() {
     $("#login").fadeOut();
     $("#downloads").fadeOut();
@@ -216,8 +233,13 @@ h2 select {
     s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:prefix}, function (err, versions) {
       // build the select menu
       var name = prefix.split('/')[0];
-      console.log("build select for "+name);
       var v = $('#' + name + ' select');
+      // these do not come back sorted, sort them now
+      versions.CommonPrefixes.sort(function(a,b) {
+        var av = a.Prefix.split('/')[1];
+        var bv = b.Prefix.split('/')[1];
+        return compareVersion(av,bv);
+      });
       for (var p in versions.CommonPrefixes) {
         var version = versions.CommonPrefixes[p].Prefix.split('/')[1];
         v.append('<option data="'+version+'" prefix="'+versions.CommonPrefixes[p].Prefix+'">'+version+'</option>');
