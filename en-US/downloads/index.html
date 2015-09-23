@@ -41,6 +41,12 @@ h2 select {
   margin-left: 10px;
   font-size: .5em;
 }
+.waitHeader {
+  max-height: 32px;
+  max-width: 32px;
+  padding-left: 10px;
+  margin-bottom: -5px;
+}
 </style>
 <script>
   //used to login with these IDP and get user profile
@@ -51,9 +57,28 @@ h2 select {
   var CognitoIdentityPoolId = 'us-east-1:809ebdd7-7b83-4eb4-8d29-139f21dc0079';
 
   var bucketName   = 'fxpartners-distros';
+  var s3;
+
+  var vparts = /(\d+)\.(\d+)(\.(\d+))?(b(\d+))?(-(\d+))/;
+  function compareVersion(a,b) {
+    var ap = vparts.exec(a);
+    var bp = vparts.exec(b);
+    console.log(a,ap,b,bp);
+    // major
+    if (ap[1] != bp[1]) return ap[1] - bp[1];
+    // minor
+    if (ap[2] != bp[2]) return ap[2] - bp[2];
+    // point
+    if (ap[4] || bp[4]) return (ap[4] || 0) - (bp[4] || 0);
+    // beta lower than release
+    if (ap[6] || bp[6]) return (ap[6] || 99) - (bp[6] || 99);
+    // build
+    return ap[8] - bp[8];
+  }
 
   function showWaitScreen() {
     $("#login").fadeOut();
+    $("#downloads").fadeOut();
     $("#wait").show();
   }
 
@@ -91,7 +116,7 @@ h2 select {
   });
 
 
-  function parseEntry(contents, s3) {
+  function parseEntry(contents) {
     var data = contents.Key.split('/');
     if (data.length < 2) {
       return null;
@@ -112,11 +137,11 @@ h2 select {
     return entry;
   }
 
-  function gatherEntries(data, s3) {
+  function gatherEntries(data) {
     var entries = {};
     var platforms = {};
     for (i = 0; i < data.Contents.length; i++) {
-      var entry = parseEntry(data.Contents[i], s3);
+      var entry = parseEntry(data.Contents[i]);
       platforms[entry.platform] = "";
       //console.log(entry);
       if (!entries[entry.version])
@@ -145,30 +170,38 @@ h2 select {
 
   function startBuildTable(data) {
     var name = data.Prefix.substr(0, data.Prefix.length-1);
+    var wait = $('<img src="/images/loading.png" class="waitHeader"></img>');
     var v = $('<select/>');
     v.change(function(){
       var ver = $(this).find("option:selected").attr("data");
+      var table = $(this.parentNode.parentNode).find("table[data='"+ver+"']")[0];
       $(this.parentNode.parentNode).find("table").css("display", "none");
-      $(this.parentNode.parentNode).find("table[data='"+ver+"']").css("display", "");
+      if (table) {
+        $(this.parentNode.parentNode).find("table[data='"+ver+"']").css("display", "");
+      } else {
+        var prefix = $(this).find("option:selected").attr("prefix");
+        wait.fadeIn();
+        s3ObjectsForPrefix(prefix);
+      }
     });
 
     var h = $('<div id="' + name + '"/>');
     $('#downloads').append(h);
     var wrap = $('<h2>' + name + '</h2>');
     wrap.append(v);
+    wrap.append(wait);
     h.prepend(wrap);
-    
   }
 
-  function buildTables(data, s3) {
+  function buildTables(data) {
     var name = data.Prefix.split('/')[0];
-    var info = gatherEntries(data, s3);
+    var info = gatherEntries(data);
     var entries = info.entries;
     var h = $('#' + name);
     var v = $('#' + name + ' select');
 
     for (var version in entries) {
-      v.append('<option data="'+version+'">'+version+'</option>');
+      //v.append('<option data="'+version+'">'+version+'</option>');
       var table = $('<table style="display: none" data="'+version+'"/>').addClass('table').addClass('table-striped');
       var tr = $('<tr/>');
       tr.append('<th>Distro</th><th>Version</th><th>Language</th>');
@@ -197,19 +230,41 @@ h2 select {
     }
   }
 
-  function s3ObjectsForPrefix(s3, bucketName, prefix) {
+  function s3ObjectsForPrefix(prefix) {
     s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
       if (err) {
         console.log(prefix, data, err);
         return false;
       }
-      buildTables(data, s3);
+      buildTables(data);
       var id = prefix.split('/')[0].substr(0, prefix.length-1);
-      $("#" + id + " select option:last-child").attr("selected", true);
+      $("#" + id + " > h2 > img").fadeOut();
       $("#" + id + " > table").css("display", "none");
       $("#" + id + " > table:last-child").css("display", "");
       showResultScreen();
     }); // end listObjects
+  }
+
+  function s3DistroVersions(prefix) {
+    s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:prefix}, function (err, versions) {
+      // build the select menu
+      var name = prefix.split('/')[0];
+      var v = $('#' + name + ' select');
+      // these do not come back sorted, sort them now
+      versions.CommonPrefixes.sort(function(a,b) {
+        var av = a.Prefix.split('/')[1];
+        var bv = b.Prefix.split('/')[1];
+        return compareVersion(av,bv);
+      });
+      for (var p in versions.CommonPrefixes) {
+        var version = versions.CommonPrefixes[p].Prefix.split('/')[1];
+        v.append('<option data="'+version+'" prefix="'+versions.CommonPrefixes[p].Prefix+'">'+version+'</option>');
+      }
+      $("#" + name + " select option:last-child").attr("selected", true);
+      // only fetch the last version for now
+      var lastVer = versions.CommonPrefixes[versions.CommonPrefixes.length-1];
+      s3ObjectsForPrefix(lastVer.Prefix);
+    });
   }
 
   function loadS3Bucket(accessToken, provider) {
@@ -235,7 +290,7 @@ h2 select {
         return false;
       }
 
-      var s3 = new AWS.S3();
+      s3 = new AWS.S3();
 
       //console.log('--- listObjects with bucket=' + bucketName + '\nand credentials=', s3.config.credentials);
       s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
@@ -254,13 +309,8 @@ h2 select {
           return false;
         }
         for (var p in data.CommonPrefixes) {
-          var prefix = data.CommonPrefixes[p].Prefix;
           startBuildTable(data.CommonPrefixes[p]);
-          s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:prefix}, function (err, data) {
-            for (var p in data.CommonPrefixes) {
-              s3ObjectsForPrefix(s3, bucketName, data.CommonPrefixes[p].Prefix);
-            }
-          });
+          s3DistroVersions(data.CommonPrefixes[p].Prefix);
         }
       });
       // if no tables were built, user has no access to anything in s3
