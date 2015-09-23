@@ -131,19 +131,20 @@ h2 select {
     return { "entries": entries, "platforms": platforms };
   }
 
-  function buildTables(data, s3) {
-    var info = gatherEntries(data, s3);
-    var entries = info.entries;
-    // nice names for table header
-    var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X',
-                         'linux-i686':'Linux', 'linux-x86_64':'Linux64',
-                         'android-x86': 'Android X86', 'android-api-9': 'Android Arm API9',
-                         'android-api-11': 'Android Arm API11'};
-    // platform to css style name
-    var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx',
-                     'linux-i686':'linux', 'linux-x86_64':'linux64',
-                     'android-x86': 'android', 'android-api-9': 'android',
-                     'android-api-11': 'android'};
+
+  // nice names for table header
+  var platformNames = {'win32':'Win32', 'win64':'Win64', 'mac':'OS X',
+                       'linux-i686':'Linux', 'linux-x86_64':'Linux64',
+                       'android-x86': 'Android X86', 'android-api-9': 'Android Arm API9',
+                       'android-api-11': 'Android Arm API11'};
+  // platform to css style name
+  var platforms = {'win32':'win32', 'win64':'win64', 'mac':'osx',
+                   'linux-i686':'linux', 'linux-x86_64':'linux64',
+                   'android-x86': 'android', 'android-api-9': 'android',
+                   'android-api-11': 'android'};
+
+  function startBuildTable(data) {
+    var name = data.Prefix.substr(0, data.Prefix.length-1);
     var v = $('<select/>');
     v.change(function(){
       var ver = $(this).find("option:selected").attr("data");
@@ -151,8 +152,21 @@ h2 select {
       $(this.parentNode.parentNode).find("table[data='"+ver+"']").css("display", "");
     });
 
-    var h = $('<div/>');
+    var h = $('<div id="' + name + '"/>');
     $('#downloads').append(h);
+    var wrap = $('<h2>' + name + '</h2>');
+    wrap.append(v);
+    h.prepend(wrap);
+    
+  }
+
+  function buildTables(data, s3) {
+    var name = data.Prefix.split('/')[0];
+    var info = gatherEntries(data, s3);
+    var entries = info.entries;
+    var h = $('#' + name);
+    var v = $('#' + name + ' select');
+
     for (var version in entries) {
       v.append('<option data="'+version+'">'+version+'</option>');
       var table = $('<table style="display: none" data="'+version+'"/>').addClass('table').addClass('table-striped');
@@ -181,13 +195,6 @@ h2 select {
       }
       h.append(table);
     }
-    var wrap = $('<h2>' + data.Prefix.substr(0, data.Prefix.length-1) + '</h2>');
-    wrap.append(v);
-    h.prepend(wrap);
-    $("#downloads select option:last-child").attr("selected", true);
-    $("#downloads > div > table:last-child").css("display", "");
-
-    showResultScreen();
   }
 
   function s3ObjectsForPrefix(s3, bucketName, prefix) {
@@ -197,6 +204,11 @@ h2 select {
         return false;
       }
       buildTables(data, s3);
+      var id = prefix.split('/')[0].substr(0, prefix.length-1);
+      $("#" + id + " select option:last-child").attr("selected", true);
+      $("#" + id + " > table").css("display", "none");
+      $("#" + id + " > table:last-child").css("display", "");
+      showResultScreen();
     }); // end listObjects
   }
 
@@ -217,6 +229,7 @@ h2 select {
 
     cognitoCredentials.refresh(function(err) {
       if (err) {
+        $("#errortitle").text("Refresh Error");
         console.log(err);
         showErrorScreen();
         return false;
@@ -226,15 +239,28 @@ h2 select {
 
       //console.log('--- listObjects with bucket=' + bucketName + '\nand credentials=', s3.config.credentials);
       s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
-        if (err || data.CommonPrefixes.length < 1) {
+        if (err) {
+          console.log(err);
           console.log(s3.config.credentials);
           $("#accessid").text(s3.config.credentials.identityId);
+          $("#errortitle").text("Access Denied");
           showErrorScreen();
           return false;
         }
-
+        if (data.CommonPrefixes.length < 1) {
+          $("#accessid").text(s3.config.credentials.identityId);
+          $("#errortitle").text("Downloads Unavailable");
+          showErrorScreen();
+          return false;
+        }
         for (var p in data.CommonPrefixes) {
-          s3ObjectsForPrefix(s3, bucketName, data.CommonPrefixes[p].Prefix);
+          var prefix = data.CommonPrefixes[p].Prefix;
+          startBuildTable(data.CommonPrefixes[p]);
+          s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:prefix}, function (err, data) {
+            for (var p in data.CommonPrefixes) {
+              s3ObjectsForPrefix(s3, bucketName, data.CommonPrefixes[p].Prefix);
+            }
+          });
         }
       });
       // if no tables were built, user has no access to anything in s3
@@ -301,7 +327,7 @@ h2 select {
 </div>
 
 <div id="error" style="display:none">
-  <h1>Access Denied</h1>
+  <h1 id="errortitle">Error</h1>
 
   <p class="lead">Your account does not have access to download any partner
   distributions.  If you feel this is in error, please contact your partner
