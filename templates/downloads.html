@@ -80,11 +80,11 @@ h2 select {
   function authResult(authResult) {
     if (authResult && !authResult.error) {
         //console.log('--- Google Authentication successful');
-        console.log(authResult);
+        //console.log(authResult);
         gapi.client.load('oauth2', 'v2', function() {
           gapi.client.oauth2.userinfo.get().execute(function(resp) {
             // Shows user email
-            console.log(resp);
+            //console.log(resp);
             $("#username").text(resp.email);
           })
         });
@@ -251,7 +251,7 @@ h2 select {
         console.log("s3ObjectsForPrefix: ", err);
         return false;
       }
-      console.log(data);
+      //console.log(data);
       buildTables(data);
       if (data.IsTruncated) {
         s3ObjectsForPrefix(prefix, data.Contents[data.Contents.length-1].Key);
@@ -323,7 +323,7 @@ h2 select {
       s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:""}, function (err, data) {
         if (err) {
           console.log(err);
-          console.log(s3.config.credentials);
+          //console.log(s3.config.credentials);
           $("#accessid").text(s3.config.credentials.identityId);
           $("#errortitle").text("Access Denied");
           showErrorScreen();
