@@ -16,6 +16,11 @@ h2 select {
   padding-left: 10px;
   margin-bottom: -5px;
 }
+#login {
+  float: right;
+  margin-bottom: -5px;
+  font-size: .75em;
+}
 </style>
 <script>
   //used to login with these IDP and get user profile
@@ -30,11 +35,11 @@ h2 select {
   var bucketName   = '{{ bucketName }}';
   var s3;
 
-  var vparts = /(\d+)\.(\d+)(\.(\d+))?(b(\d+))?(-(\d+))/;
+  var vparts = /(\d+)\.(\d+)(\.(\d+))?(b(\d+))?(-(\d+))?/;
   function compareVersion(a,b) {
     var ap = vparts.exec(a);
     var bp = vparts.exec(b);
-    console.log(a,ap,b,bp);
+    //console.log(a,ap,b,bp);
     // major
     if (ap[1] != bp[1]) return ap[1] - bp[1];
     // minor
@@ -48,39 +53,60 @@ h2 select {
   }
 
   function showWaitScreen() {
-    $("#login").fadeOut();
+    $('#downloads').empty();
+    $("#login span:first-child").hide();
+    $("#login span:last-child").show();
     $("#downloads").fadeOut();
     $("#wait").show();
+    $("#error").hide();
   }
 
   function showErrorScreen() {
-    $("#login").hide();
+    $('#downloads').empty();
+    $("#login span:last-child").hide();
+    $("#login span:first-child").show();
     $("#wait").hide();
     $("#error").show();
   }
 
   function showResultScreen() {
+    $("#login span:first-child").hide();
+    $("#login span:last-child").show();
+    $("#error").hide();
     $("#wait").hide();
     $("#downloads").fadeIn();
+  }  
+
+  function authResult(authResult) {
+    if (authResult && !authResult.error) {
+        //console.log('--- Google Authentication successful');
+        console.log(authResult);
+        gapi.client.load('oauth2', 'v2', function() {
+          gapi.client.oauth2.userinfo.get().execute(function(resp) {
+            // Shows user email
+            console.log(resp);
+            $("#username").text(resp.email);
+          })
+        });
+        showWaitScreen();
+        loadS3Bucket(authResult.id_token, 'accounts.google.com');
+    } else {
+        console.log('--- Google Authentication failed');
+        showErrorScreen();
+    }
+  }
+
+  function checkAuth() {
+    var  scopes = 'openid profile https://www.googleapis.com/auth/userinfo.email';
+    gapi.auth.authorize({client_id: GoogleAppId, scope: scopes, immediate: true, response_type:"token id_token"}, authResult);
   }
 
   $(document).ready(function () {
 
     $("button#googleProvider").click(function () {
         // get authorization to use private data
-        var  scopes = 'openid profile';
-        gapi.auth.authorize({client_id: GoogleAppId, scope: scopes, immediate: false, response_type:"token id_token"}, function(authResult) {
-            if (authResult && !authResult.error) {
-                //console.log('--- Google Authentication successful');
-                //console.log(authResult);
-                showWaitScreen();
-                loadS3Bucket(authResult.id_token, 'accounts.google.com');
-            } else {
-                console.log('--- Google Authentication failed');
-                showErrorScreen();
-            }
-        });
-        return false;
+        var  scopes = 'openid profile https://www.googleapis.com/auth/userinfo.email';
+        gapi.auth.authorize({client_id: GoogleAppId, scope: scopes, immediate: false, response_type:"token id_token", authuser: -1}, authResult);
     });
 
 {% if enableAmazon %}
@@ -152,8 +178,8 @@ h2 select {
                    'android-x86': 'android', 'android-api-9': 'android',
                    'android-api-11': 'android'};
 
-  function startBuildTable(data) {
-    var name = data.Prefix.substr(0, data.Prefix.length-1);
+  function startBuildTable(prefix) {
+    var name = prefix.substr(0, prefix.length-1);
     var wait = $('<img src="/images/loading.png" class="waitHeader"></img>');
     var v = $('<select/>');
     v.change(function(){
@@ -186,15 +212,21 @@ h2 select {
 
     for (var version in entries) {
       //v.append('<option data="'+version+'">'+version+'</option>');
-      var table = $('<table style="display: none" data="'+version+'"/>').addClass('table').addClass('table-striped');
-      var tr = $('<tr/>');
-      tr.append('<th>Distro</th><th>Version</th><th>Language</th>');
-      for (var plat in info.platforms) {
-        tr.append('<th>' + (platformNames[plat] || plat) + '</th>');
+      var table = h.find('table[data="'+version+'"]')[0];
+      if (table) {
+        table = $(table);
+      } else {
+        table = $('<table style="display: none" data="'+version+'"/>').addClass('table').addClass('table-striped');
+        var tr = $('<tr/>');
+        tr.append('<th>Distro</th><th>Version</th><th>Language</th>');
+        for (var plat in info.platforms) {
+          tr.append('<th>' + (platformNames[plat] || plat) + '</th>');
+        }
+        var th = $('<thead id="header"/>');
+        th.append(tr);
+        table.append(th);
+        h.append(table);
       }
-      var th = $('<thead id="header"/>');
-      th.append(tr);
-      table.append(th);
       for (var distro in entries[version]) {
         for (var locale in entries[version][distro]) {
           var t = $("<tr class='row'>").append("<td class='distro'>" + distro + "</td>")
@@ -210,27 +242,37 @@ h2 select {
           table.append(t);
         }
       }
-      h.append(table);
     }
   }
 
-  function s3ObjectsForPrefix(prefix) {
-    s3.listObjects(params = {Bucket: bucketName, Prefix:prefix}, function (err, data) {
+  function s3ObjectsForPrefix(prefix, marker) {
+    s3.listObjects(params = {Bucket: bucketName, Prefix:prefix, Marker:marker}, function (err, data) {
       if (err) {
-        console.log(prefix, data, err);
+        console.log("s3ObjectsForPrefix: ", err);
         return false;
       }
+      console.log(data);
       buildTables(data);
+      if (data.IsTruncated) {
+        s3ObjectsForPrefix(prefix, data.Contents[data.Contents.length-1].Key);
+        return;
+      }
       var id = prefix.split('/')[0].substr(0, prefix.length-1);
       $("#" + id + " > h2 > img").fadeOut();
       $("#" + id + " > table").css("display", "none");
-      $("#" + id + " > table:last-child").css("display", "");
+      var sVersion = $("#" + id).find("option:selected").attr("data");
+      $("#" + id + " > table[data='"+sVersion+"']").css("display", "");
       showResultScreen();
     }); // end listObjects
   }
 
   function s3DistroVersions(prefix) {
     s3.listObjects(params = {Bucket: bucketName, Delimiter: "/", Prefix:prefix}, function (err, versions) {
+      if (err) {
+        console.log("s3DistroVersions: ", err);
+        return false;
+      }
+      startBuildTable(prefix);
       // build the select menu
       var name = prefix.split('/')[0];
       var v = $('#' + name + ' select');
@@ -247,7 +289,8 @@ h2 select {
       $("#" + name + " select option:last-child").attr("selected", true);
       // only fetch the last version for now
       var lastVer = versions.CommonPrefixes[versions.CommonPrefixes.length-1];
-      s3ObjectsForPrefix(lastVer.Prefix);
+      // XXX policies are not right for passing lastVer.Prefix which is what we really want to do.
+      s3ObjectsForPrefix(prefix);
     });
   }
 
@@ -293,7 +336,6 @@ h2 select {
           return false;
         }
         for (var p in data.CommonPrefixes) {
-          startBuildTable(data.CommonPrefixes[p]);
           s3DistroVersions(data.CommonPrefixes[p].Prefix);
         }
       });
@@ -310,32 +352,34 @@ h2 select {
   function onGoogleSDKLoaded() {
       $("#googleProvider").removeAttr("disabled");
       gapi.client.setApiKey(GoogleAPIKey);
+      gapi.auth.init(function() {
+        window.setTimeout(checkAuth, 1);
+      });
   };
 </script>
 {% endblock %}
 
 {% block header %}
 <header id="main-feature">
+  <div id="login">
+    <ul class="providers">
+  {% if enableAmazon %}
+      <li>
+      <button id="amazon" class="on"/>
+      </button>
+      </li>
+  {% endif %}
+      <li><span id="username"></span></li>
+      <li>
+      <button id="googleProvider" class="on" disabled="disabled"><span>Sign in with Google</span><span hidden="true">Change User</span></button>
+      </li>
+    </ul><br/>
+  </div>
   <h1>Partner Downloads</h1>
-    <h2>
-  </h2>
 </header>
 {% endblock %}
 
 {% block content %}
-<div id="login">
-  <ul class="providers">
-{% if enableAmazon %}
-    <li>
-    <button id="amazon" class="on"/>
-    </button>
-    </li>
-{% endif %}
-    <li>
-    <button id="googleProvider" class="on" disabled="disabled">Sign in with Google to continue...</button>
-    </li>
-  </ul><br/>
-</div>
 
 <div id="downloads" style="display:none"></div>
 
