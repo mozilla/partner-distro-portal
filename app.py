@@ -77,26 +77,26 @@ def createapp():
     data['current_year'] = datetime.now().year
     return render_template(template, **data)
 
-  # # support for persona if we use it 
+  # # support for persona if we use it
   # @app.route('/auth/login', methods=['POST'])
   # def login():
   #   if 'assertion' not in request.form:
   #       abort(400)
-  # 
+  #
   #   assertion_info = {'assertion': request.form['assertion'],
   #                       'audience': 'localhost:8888' } # window.location.host
   #   resp = requests.post('https://verifier.login.persona.org/verify',
   #                       data=assertion_info, verify=True)
-  # 
+  #
   #   if not resp.ok:
   #       abort(500)
-  # 
+  #
   #   data = resp.json()
   #   print "", data
   #   if data['status'] == 'okay':
   #       session.update({'email': data['email']})
   #       return resp.content
-  # 
+  #
   # @app.route('/auth/logout', methods=['POST'])
   # def logout():
   #   session.pop('email', None)
@@ -153,7 +153,7 @@ def createapp():
   return app
 
 
+app = createapp()
+app.secret_key = binascii.b2a_hex(os.urandom(30))
 if __name__ == '__main__':
-  app = createapp()
-  app.secret_key = binascii.b2a_hex(os.urandom(30))
   app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8888)))
